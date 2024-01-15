@@ -1,0 +1,105 @@
+import numpy as np 
+from PIL import Image
+import base64
+
+message_to_hide = "word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
+ROT18 = str.maketrans(
+    "ABCDEFGHIJKLMabcdefghijklmNOPQRSTUVWXYZnopqrstuvwxyz0123456789",
+    "NOPQRSTUVWXYZnopqrstuvwxyzABCDEFGHIJKLMabcdefghijklm5678901234",
+)
+
+
+# Opening the image in which we want to do our encoding
+image = Image.open('images-address', 'r')
+width, height = image.size
+
+# Convert an image into a 2D array (or bitmap)
+img_arr = np.array(list(image.getdata()))
+
+# Image mode P(palette) is not supported
+if image.mode == "P":
+    print("Not Supported")
+    exit()
+
+# Determine how many channels exist in the image
+channels = 4 if image.mode == "RGBA" else 3 
+
+pixels = img_arr.size // channels
+
+stop_indicator = "--FavoriteGaaliMostUsedNumberKSaath--"
+stop_indicator_length = len(stop_indicator)
+
+# appended the stop_indicator to the message_to_hide
+message_to_hide += stop_indicator
+message_to_hide = message_to_hide.translate(ROT18)
+
+# message_to_hide = base64.a85encode(message_to_hide.encode('utf-8')).decode('utf-8')
+
+# print(message_to_hide)
+
+# Convert string -> Bytes -> Bits
+# Example assume A is rep as 42 in ASCII then 42 would be rep as 0s and 1s in binary
+byte_message = ''.join(f"{ord(c):08b}" for c in message_to_hide)
+# print(byte_message)
+bits = len(byte_message)
+
+if bits > pixels:
+    print("Not enough space")
+else:
+    index = 0
+    for i in range(pixels):
+        for j in range(0, channels):
+            if index < bits:
+                # Change the last bit of the ith pixel in the jth channel and increase index
+                if i % 2 == 0 and j % 2 != 0:
+                    img_arr[i][j] = int(bin(img_arr[i][j])[2:-1] + byte_message[index], 2)
+                    index += 1 
+
+img_arr = img_arr.reshape((height, width, channels))
+result = Image.fromarray(img_arr.astype('uint8'), image.mode)
+result.save('output-image')
+
+
+--------------
+
+
+import numpy as np
+from PIL import Image
+
+anti_rot_18 = str.maketrans(
+    "NOPQRSTUVWXYZnopqrstuvwxyzABCDEFGHIJKLMabcdefghijklm5678901234",
+    "ABCDEFGHIJKLMabcdefghijklmNOPQRSTUVWXYZnopqrstuvwxyz0123456789",
+)
+
+image = Image.open('question-image')
+img_arr = np.array(list(image.getdata()))
+
+channels = 4 if image.mode == 'RGBA' else 3
+
+pixels = img_arr.size // channels
+
+# Finding all the relevant pixels
+secret_bits = []
+for i in range(pixels):
+    for j in range(channels):
+        if i % 2 == 0 and j % 2 != 0:
+            secret_bits.append(bin(img_arr[i][j])[-1])
+# Converting the array into a string
+secret_bits = ''.join(secret_bits)
+# Converting the bits into bytes (group of 8 bits)
+secret_bits = [secret_bits[i:i+8] for i in range(0, len(secret_bits), 8)]
+
+# Converting the bytes into ASCII characters
+ascii_message = [chr(int(secret_bits[i], 2)) for i in range(len(secret_bits))]
+ascii_message = ''.join(ascii_message)
+
+# print(ascii_message)
+
+stop_indicator = "--FavoriteGaaliMostUsedNumberKSaath--".translate(anti_rot_18)
+
+if stop_indicator in ascii_message:
+    required_message = ascii_message[:ascii_message.index(stop_indicator)].translate(anti_rot_18)
+else:
+    print("Something went wrong!!")
+
+print(required_message)
